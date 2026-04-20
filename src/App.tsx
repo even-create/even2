@@ -44,7 +44,7 @@ const NotificationItem = ({ notification, onDelete }: { notification: Notificati
       initial={{ opacity: 0, y: 20, scale: 0.95 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
       exit={{ opacity: 0, scale: 0.9 }}
-      className="w-full bg-white/80 backdrop-blur-[30px] rounded-[24px] px-3 py-4 shadow-sm border border-white/20 relative group"
+      className="w-full bg-white/80 backdrop-blur-[30px] rounded-[24px] px-3 pt-2.5 pb-3.5 shadow-sm border border-white/20 relative group"
     >
       <div className="flex gap-3 items-start">
         {/* Avatar with Overlapping Badge Container */}
