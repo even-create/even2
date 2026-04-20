@@ -199,7 +199,7 @@ export default function App() {
         <div className="absolute -inset-4 bg-black/40 blur-2xl rounded-[60px] opacity-50"></div>
         
         {/* Device Frame (iPhone 16 Pro Max roughly 19.5:9) */}
-        <div className="relative w-[340px] h-[720px] bg-[#0c0c0c] rounded-[52px] border-[6px] border-[#1f1f21] p-2.5 shadow-2xl overflow-hidden ring-1 ring-white/10">
+        <div className="relative w-[356px] h-[720px] bg-[#0c0c0c] rounded-[52px] border-[6px] border-[#1f1f21] p-2.5 shadow-2xl overflow-hidden ring-1 ring-white/10">
           
           {/* Inner Screen Surface */}
           <div className="relative w-full h-full rounded-[42px] overflow-hidden bg-black select-none">
