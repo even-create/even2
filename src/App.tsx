@@ -215,7 +215,7 @@ export default function App() {
             <div className="absolute inset-0 bg-black/30 backdrop-blur-[1px]"></div>
 
             {/* --- Screen Content --- */}
-            <div className="relative w-full h-full flex flex-col pt-10 px-6">
+            <div className="relative w-full h-full flex flex-col pt-10 px-4">
               
               {/* Dynamic Island */}
               <div className="absolute top-3 left-1/2 -translate-x-1/2 w-28 h-7 bg-black rounded-full z-50 flex items-center justify-between px-3">
