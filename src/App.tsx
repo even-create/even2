@@ -44,11 +44,11 @@ const NotificationItem = ({ notification, onDelete }: { notification: Notificati
       initial={{ opacity: 0, y: 20, scale: 0.95 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
       exit={{ opacity: 0, scale: 0.9 }}
-      className="w-full bg-white/80 backdrop-blur-[30px] rounded-[24px] p-4 shadow-sm border border-white/20 relative group"
+      className="w-full bg-white/80 backdrop-blur-[30px] rounded-[24px] px-3 py-4 shadow-sm border border-white/20 relative group"
     >
-      <div className="flex gap-4 items-start">
+      <div className="flex gap-3 items-start">
         {/* Avatar with Overlapping Badge Container */}
-        <div className="relative flex-shrink-0 w-[52px] h-[52px]">
+        <div className="relative flex-shrink-0 w-[48px] h-[48px]">
           {/* Main Large Avatar */}
           <div className="w-full h-full rounded-full overflow-hidden bg-neutral-200 shadow-inner">
             {notification.avatar ? (
@@ -62,7 +62,7 @@ const NotificationItem = ({ notification, onDelete }: { notification: Notificati
           
           {/* Overlapping App Badge (Square with rounded corners) - ONLY FOR WHATSAPP */}
           {isWhatsApp && (
-            <div className="absolute bottom-[-2px] right-[-2px] w-[24px] h-[24px] rounded-[7px] overflow-hidden shadow-md flex items-center justify-center bg-white ring-2 ring-white">
+            <div className="absolute bottom-[-2px] right-[-2px] w-[22px] h-[22px] rounded-[7px] overflow-hidden shadow-md flex items-center justify-center bg-white ring-2 ring-white">
                {notification.appBadge ? (
                  <img src={notification.appBadge} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
                ) : (
@@ -80,15 +80,15 @@ const NotificationItem = ({ notification, onDelete }: { notification: Notificati
         
         {/* Content Area */}
         <div className="flex-1 min-w-0 pt-0.5">
-          <div className="flex justify-between items-baseline mb-0.5">
-            <h4 className="text-[16px] font-bold text-gray-900 truncate tracking-tight">
+          <div className="flex justify-between items-baseline mb-0">
+            <h4 className="text-[15px] font-bold text-gray-900 truncate tracking-tight">
               {notification.sender}
             </h4>
-            <span className="text-[12px] text-gray-400 font-medium whitespace-nowrap ml-2">
+            <span className="text-[11px] text-gray-400 font-medium whitespace-nowrap ml-2">
               {notification.time}
             </span>
           </div>
-          <p className="text-[15px] text-gray-900 leading-[1.3] font-normal tracking-tight whitespace-pre-wrap">
+          <p className="text-[14px] text-gray-900 leading-[1.22] font-normal tracking-[-0.02em] whitespace-pre-wrap">
             {notification.content}
           </p>
         </div>
