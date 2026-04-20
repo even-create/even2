@@ -242,9 +242,13 @@ export default function App() {
     if (!captureNode || isSavingImage) return;
 
     setIsSavingImage(true);
-    setSaveStatus(null);
+    setSaveStatus('Preparing JPG...');
 
     try {
+      if ('fonts' in document) {
+        await (document as Document & { fonts: FontFaceSet }).fonts.ready;
+      }
+
       const clone = captureNode.cloneNode(true) as HTMLElement;
       const rect = captureNode.getBoundingClientRect();
       const scale = 2;
@@ -267,9 +271,8 @@ export default function App() {
         </svg>
       `;
 
-      const svgBlob = new Blob([svgMarkup], { type: 'image/svg+xml;charset=utf-8' });
-      const svgUrl = URL.createObjectURL(svgBlob);
       const image = new Image();
+      const svgDataUrl = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svgMarkup)}`;
 
       image.onload = () => {
         const canvas = document.createElement('canvas');
@@ -278,32 +281,47 @@ export default function App() {
 
         const context = canvas.getContext('2d');
         if (!context) {
-          URL.revokeObjectURL(svgUrl);
           setSaveStatus('Save failed');
           setIsSavingImage(false);
           return;
         }
 
+        context.fillStyle = '#171717';
+        context.fillRect(0, 0, canvas.width, canvas.height);
         context.scale(scale, scale);
         context.drawImage(image, 0, 0);
-        URL.revokeObjectURL(svgUrl);
 
-        const link = document.createElement('a');
-        link.href = canvas.toDataURL('image/png');
-        link.download = `lock-screen-${Date.now()}.png`;
-        link.click();
+        canvas.toBlob(
+          (blob) => {
+            if (!blob) {
+              setSaveStatus('Save failed');
+              setIsSavingImage(false);
+              return;
+            }
 
-        setSaveStatus('Image downloaded');
-        setIsSavingImage(false);
+            const downloadUrl = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = downloadUrl;
+            link.download = `lock-screen-${Date.now()}.jpg`;
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            URL.revokeObjectURL(downloadUrl);
+
+            setSaveStatus('JPG downloaded');
+            setIsSavingImage(false);
+          },
+          'image/jpeg',
+          0.95
+        );
       };
 
       image.onerror = () => {
-        URL.revokeObjectURL(svgUrl);
         setSaveStatus('Save failed');
         setIsSavingImage(false);
       };
 
-      image.src = svgUrl;
+      image.src = svgDataUrl;
     } catch {
       setSaveStatus('Save failed');
       setIsSavingImage(false);
@@ -470,7 +488,7 @@ export default function App() {
                 className="w-full flex items-center justify-center gap-2 py-3 bg-blue-600 text-white rounded-2xl hover:bg-blue-700 transition-all disabled:opacity-60 disabled:cursor-not-allowed"
               >
                 <Download size={18} />
-                <span className="text-sm font-medium">{isSavingImage ? 'Saving...' : 'Save Image'}</span>
+                <span className="text-sm font-medium">{isSavingImage ? 'Saving JPG...' : 'Save JPG'}</span>
               </button>
               {saveStatus && (
                 <p className="text-xs font-medium text-gray-500">{saveStatus}</p>
