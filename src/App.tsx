@@ -17,7 +17,7 @@ import {
   Clock as ClockIcon,
   Calendar,
   Image as ImageIcon,
-  Check,
+  Download,
   X
 } from 'lucide-react';
 
@@ -137,9 +137,12 @@ export default function App() {
   ]);
 
   const [isEditing, setIsEditing] = useState(false);
+  const [isSavingImage, setIsSavingImage] = useState(false);
+  const [saveStatus, setSaveStatus] = useState<string | null>(null);
   const [uploadTarget, setUploadTarget] = useState<{ id: string, field: 'avatar' | 'appBadge' } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const assetUploadRef = useRef<HTMLInputElement>(null);
+  const phoneCaptureRef = useRef<HTMLDivElement>(null);
 
   // --- Handlers ---
   const handleAssetUploadClick = (id: string, field: 'avatar' | 'appBadge') => {
@@ -190,11 +193,135 @@ export default function App() {
     }
   };
 
+  const blobToDataUrl = (blob: Blob) =>
+    new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result as string);
+      reader.onerror = () => reject(new Error('Failed to read image data.'));
+      reader.readAsDataURL(blob);
+    });
+
+  const inlineImagesForExport = async (source: HTMLElement, clone: HTMLElement) => {
+    const sourceImages = Array.from(source.querySelectorAll('img'));
+    const clonedImages = Array.from(clone.querySelectorAll('img'));
+
+    await Promise.all(
+      sourceImages.map(async (img, index) => {
+        const target = clonedImages[index];
+        const src = img.currentSrc || img.src;
+
+        if (!target || !src || src.startsWith('data:')) return;
+
+        try {
+          const response = await fetch(src);
+          if (!response.ok) throw new Error('Image fetch failed');
+          const blob = await response.blob();
+          target.src = await blobToDataUrl(blob);
+        } catch {
+          target.crossOrigin = 'anonymous';
+        }
+      })
+    );
+  };
+
+  const getDocumentStyles = () =>
+    Array.from(document.styleSheets)
+      .map((sheet) => {
+        try {
+          return Array.from(sheet.cssRules)
+            .map((rule) => rule.cssText)
+            .join('\n');
+        } catch {
+          return '';
+        }
+      })
+      .join('\n');
+
+  const handleSaveImage = async () => {
+    const captureNode = phoneCaptureRef.current;
+    if (!captureNode || isSavingImage) return;
+
+    setIsSavingImage(true);
+    setSaveStatus(null);
+
+    try {
+      const clone = captureNode.cloneNode(true) as HTMLElement;
+      const rect = captureNode.getBoundingClientRect();
+      const scale = 2;
+      const width = Math.round(rect.width);
+      const height = Math.round(rect.height);
+
+      clone.setAttribute('xmlns', 'http://www.w3.org/1999/xhtml');
+      clone.style.margin = '0';
+
+      await inlineImagesForExport(captureNode, clone);
+
+      const svgMarkup = `
+        <svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">
+          <foreignObject width="100%" height="100%">
+            <div xmlns="http://www.w3.org/1999/xhtml">
+              <style>${getDocumentStyles()}</style>
+              ${clone.outerHTML}
+            </div>
+          </foreignObject>
+        </svg>
+      `;
+
+      const svgBlob = new Blob([svgMarkup], { type: 'image/svg+xml;charset=utf-8' });
+      const svgUrl = URL.createObjectURL(svgBlob);
+      const image = new Image();
+
+      image.onload = () => {
+        const canvas = document.createElement('canvas');
+        canvas.width = width * scale;
+        canvas.height = height * scale;
+
+        const context = canvas.getContext('2d');
+        if (!context) {
+          URL.revokeObjectURL(svgUrl);
+          setSaveStatus('Save failed');
+          setIsSavingImage(false);
+          return;
+        }
+
+        context.scale(scale, scale);
+        context.drawImage(image, 0, 0);
+        URL.revokeObjectURL(svgUrl);
+
+        const link = document.createElement('a');
+        link.href = canvas.toDataURL('image/png');
+        link.download = `lock-screen-${Date.now()}.png`;
+        link.click();
+
+        setSaveStatus('Image downloaded');
+        setIsSavingImage(false);
+      };
+
+      image.onerror = () => {
+        URL.revokeObjectURL(svgUrl);
+        setSaveStatus('Save failed');
+        setIsSavingImage(false);
+      };
+
+      image.src = svgUrl;
+    } catch {
+      setSaveStatus('Save failed');
+      setIsSavingImage(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!saveStatus) return;
+
+    const timeoutId = window.setTimeout(() => setSaveStatus(null), 2500);
+    return () => window.clearTimeout(timeoutId);
+  }, [saveStatus]);
+
   return (
     <div className="min-h-screen bg-neutral-900 flex flex-col lg:flex-row items-center justify-center p-4 lg:p-12 gap-12 font-sans overflow-hidden">
       
       {/* --- iPhone Frame --- */}
-      <div className="relative group">
+      <div ref={phoneCaptureRef} className="relative group">
         {/* Shadow for depth */}
         <div className="absolute -inset-4 bg-black/40 blur-2xl rounded-[60px] opacity-50"></div>
         
@@ -333,6 +460,21 @@ export default function App() {
                 accept="image/*" 
                 onChange={handleWallpaperChange} 
               />
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-gray-700">Export</label>
+              <button
+                onClick={handleSaveImage}
+                disabled={isSavingImage}
+                className="w-full flex items-center justify-center gap-2 py-3 bg-blue-600 text-white rounded-2xl hover:bg-blue-700 transition-all disabled:opacity-60 disabled:cursor-not-allowed"
+              >
+                <Download size={18} />
+                <span className="text-sm font-medium">{isSavingImage ? 'Saving...' : 'Save Image'}</span>
+              </button>
+              {saveStatus && (
+                <p className="text-xs font-medium text-gray-500">{saveStatus}</p>
+              )}
             </div>
           </section>
 
