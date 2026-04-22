@@ -290,20 +290,20 @@ export default function App() {
         const avatarSrc = notification.avatar || DEFAULT_MARTY_AVATAR;
         const badgeSrc = notification.appBadge || DEFAULT_WHATSAPP_BADGE;
 
-        const textSvg = textLines
+        const textSvg = notification.textLines
           .map(
             (line, index) =>
               `<text x="${notificationX + 82}" y="${textStartY + index * 19}" font-family="Arial, Helvetica, sans-serif" font-size="16" fill="#111827">${line}</text>`
           )
           .join('');
 
-        const badgeSvg = isWhatsApp
+        const badgeSvg = notification.isWhatsApp
           ? `<image href="${badgeSrc}" x="${notificationX + 47}" y="${notificationY + 40}" width="22" height="22" preserveAspectRatio="xMidYMid slice" />`
           : '';
 
         const svg = `
           <g>
-            <rect x="${notificationX}" y="${notificationY}" width="${notificationWidth}" height="${boxHeight}" rx="18" fill="rgba(242,242,242,0.96)" />
+            <rect x="${notificationX}" y="${notificationY}" width="${notificationWidth}" height="${notification.boxHeight}" rx="18" fill="rgba(242,242,242,0.96)" />
             <clipPath id="avatar-clip-${notification.id}">
               <circle cx="${notificationX + 36}" cy="${notificationY + 37}" r="24" />
             </clipPath>
