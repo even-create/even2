@@ -70,11 +70,11 @@ const NotificationItem = ({ notification, onDelete, isExportMode = false }: { no
           
           {/* Overlapping App Badge (Square with rounded corners) - ONLY FOR WHATSAPP */}
           {isWhatsApp && (
-            <div className="absolute bottom-[-2px] right-[-2px] w-[22px] h-[22px] rounded-[7px] overflow-hidden shadow-md flex items-center justify-center bg-white ring-2 ring-white">
+            <div className="absolute bottom-[-2px] right-[-2px] w-[22px] h-[22px] overflow-hidden flex items-center justify-center">
                {notification.appBadge ? (
                  <img src={notification.appBadge} className="w-full h-full object-cover" crossOrigin="anonymous" referrerPolicy="no-referrer" />
                ) : (
-                 <div className="w-full h-full flex items-center justify-center bg-[#25D366]">
+                 <div className="w-full h-full flex items-center justify-center">
                     <img 
                       src={DEFAULT_WHATSAPP_BADGE} 
                       alt="WhatsApp Logo" 
