@@ -259,13 +259,31 @@ export default function App() {
       const innerHeight = 700;
       const notificationWidth = 302;
       const notificationX = 16;
-      let notificationY = 230;
+      const notificationGap = 12;
+      const notificationTop = 230;
+      const notificationBottom = 648;
 
-      const notificationSvgs = notifications.map((notification) => {
+      const exportNotifications = notifications.map((notification) => {
         const isWhatsApp = notification.type === 'whatsapp';
-        const senderLines = [escapeXml(notification.sender)];
         const textLines = wrapText(notification.content, 28).map(escapeXml);
         const boxHeight = Math.max(82, 54 + textLines.length * 19);
+        return {
+          ...notification,
+          isWhatsApp,
+          textLines,
+          boxHeight,
+        };
+      });
+
+      const totalNotificationsHeight =
+        exportNotifications.reduce((sum, notification) => sum + notification.boxHeight, 0) +
+        Math.max(0, exportNotifications.length - 1) * notificationGap;
+
+      let notificationY = Math.max(192, notificationBottom - totalNotificationsHeight);
+      notificationY = Math.min(notificationTop, notificationY);
+
+      const notificationSvgs = exportNotifications.map((notification) => {
+        const senderLines = [escapeXml(notification.sender)];
         const senderY = notificationY + 35;
         const textStartY = notificationY + 57;
         const timeColor = '#9ca3af';
@@ -297,7 +315,7 @@ export default function App() {
           </g>
         `;
 
-        notificationY += boxHeight + 12;
+        notificationY += notification.boxHeight + notificationGap;
         return svg;
       }).join('');
 
