@@ -5,6 +5,7 @@
 
 import { useState, useEffect, useRef, ChangeEvent } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
+import { toJpeg } from 'html-to-image';
 import { 
   Camera, 
   Flashlight, 
@@ -20,6 +21,8 @@ import {
   Download,
   X
 } from 'lucide-react';
+
+const ACCESS_CODE = 'aical123';
 
 // --- Types ---
 
@@ -139,6 +142,9 @@ export default function App() {
   const [isEditing, setIsEditing] = useState(false);
   const [isSavingImage, setIsSavingImage] = useState(false);
   const [saveStatus, setSaveStatus] = useState<string | null>(null);
+  const [passcodeInput, setPasscodeInput] = useState('');
+  const [passcodeError, setPasscodeError] = useState('');
+  const [isUnlocked, setIsUnlocked] = useState(false);
   const [uploadTarget, setUploadTarget] = useState<{ id: string, field: 'avatar' | 'appBadge' } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const assetUploadRef = useRef<HTMLInputElement>(null);
@@ -193,49 +199,15 @@ export default function App() {
     }
   };
 
-  const blobToDataUrl = (blob: Blob) =>
-    new Promise<string>((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onloadend = () => resolve(reader.result as string);
-      reader.onerror = () => reject(new Error('Failed to read image data.'));
-      reader.readAsDataURL(blob);
-    });
+  const handleUnlock = () => {
+    if (passcodeInput === ACCESS_CODE) {
+      setIsUnlocked(true);
+      setPasscodeError('');
+      return;
+    }
 
-  const inlineImagesForExport = async (source: HTMLElement, clone: HTMLElement) => {
-    const sourceImages = Array.from(source.querySelectorAll('img'));
-    const clonedImages = Array.from(clone.querySelectorAll('img'));
-
-    await Promise.all(
-      sourceImages.map(async (img, index) => {
-        const target = clonedImages[index];
-        const src = img.currentSrc || img.src;
-
-        if (!target || !src || src.startsWith('data:')) return;
-
-        try {
-          const response = await fetch(src);
-          if (!response.ok) throw new Error('Image fetch failed');
-          const blob = await response.blob();
-          target.src = await blobToDataUrl(blob);
-        } catch {
-          target.crossOrigin = 'anonymous';
-        }
-      })
-    );
+    setPasscodeError('通行码不对');
   };
-
-  const getDocumentStyles = () =>
-    Array.from(document.styleSheets)
-      .map((sheet) => {
-        try {
-          return Array.from(sheet.cssRules)
-            .map((rule) => rule.cssText)
-            .join('\n');
-        } catch {
-          return '';
-        }
-      })
-      .join('\n');
 
   const handleSaveImage = async () => {
     const captureNode = phoneCaptureRef.current;
@@ -248,82 +220,26 @@ export default function App() {
       if ('fonts' in document) {
         await (document as Document & { fonts: FontFaceSet }).fonts.ready;
       }
+      const dataUrl = await toJpeg(captureNode, {
+        quality: 0.95,
+        pixelRatio: 2,
+        cacheBust: true,
+        backgroundColor: '#171717',
+        skipAutoScale: true,
+      });
 
-      const clone = captureNode.cloneNode(true) as HTMLElement;
-      const rect = captureNode.getBoundingClientRect();
-      const scale = 2;
-      const width = Math.round(rect.width);
-      const height = Math.round(rect.height);
+      const link = document.createElement('a');
+      link.href = dataUrl;
+      link.download = `lock-screen-${Date.now()}.jpg`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
 
-      clone.setAttribute('xmlns', 'http://www.w3.org/1999/xhtml');
-      clone.style.margin = '0';
-
-      await inlineImagesForExport(captureNode, clone);
-
-      const svgMarkup = `
-        <svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">
-          <foreignObject width="100%" height="100%">
-            <div xmlns="http://www.w3.org/1999/xhtml">
-              <style>${getDocumentStyles()}</style>
-              ${clone.outerHTML}
-            </div>
-          </foreignObject>
-        </svg>
-      `;
-
-      const image = new Image();
-      const svgDataUrl = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svgMarkup)}`;
-
-      image.onload = () => {
-        const canvas = document.createElement('canvas');
-        canvas.width = width * scale;
-        canvas.height = height * scale;
-
-        const context = canvas.getContext('2d');
-        if (!context) {
-          setSaveStatus('Save failed');
-          setIsSavingImage(false);
-          return;
-        }
-
-        context.fillStyle = '#171717';
-        context.fillRect(0, 0, canvas.width, canvas.height);
-        context.scale(scale, scale);
-        context.drawImage(image, 0, 0);
-
-        canvas.toBlob(
-          (blob) => {
-            if (!blob) {
-              setSaveStatus('Save failed');
-              setIsSavingImage(false);
-              return;
-            }
-
-            const downloadUrl = URL.createObjectURL(blob);
-            const link = document.createElement('a');
-            link.href = downloadUrl;
-            link.download = `lock-screen-${Date.now()}.jpg`;
-            document.body.appendChild(link);
-            link.click();
-            link.remove();
-            URL.revokeObjectURL(downloadUrl);
-
-            setSaveStatus('JPG downloaded');
-            setIsSavingImage(false);
-          },
-          'image/jpeg',
-          0.95
-        );
-      };
-
-      image.onerror = () => {
-        setSaveStatus('Save failed');
-        setIsSavingImage(false);
-      };
-
-      image.src = svgDataUrl;
-    } catch {
-      setSaveStatus('Save failed');
+      setSaveStatus('JPG downloaded');
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      setSaveStatus(`Save failed: ${message}`);
+    } finally {
       setIsSavingImage(false);
     }
   };
@@ -334,6 +250,44 @@ export default function App() {
     const timeoutId = window.setTimeout(() => setSaveStatus(null), 2500);
     return () => window.clearTimeout(timeoutId);
   }, [saveStatus]);
+
+  if (!isUnlocked) {
+    return (
+      <div className="min-h-screen bg-neutral-950 flex items-center justify-center p-6 font-sans">
+        <div className="w-full max-w-sm bg-white rounded-[28px] shadow-2xl border border-neutral-200 p-8 space-y-5">
+          <div className="space-y-2 text-center">
+            <h1 className="text-2xl font-bold text-neutral-900">输入通行码</h1>
+            <p className="text-sm text-neutral-500">请输入访问码后再进入编辑页面</p>
+          </div>
+
+          <div className="space-y-3">
+            <input
+              type="password"
+              value={passcodeInput}
+              onChange={(e) => {
+                setPasscodeInput(e.target.value);
+                if (passcodeError) setPasscodeError('');
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') handleUnlock();
+              }}
+              placeholder="请输入通行码"
+              className="w-full px-4 py-3 bg-neutral-50 border border-neutral-200 rounded-2xl text-sm outline-none focus:ring-2 focus:ring-blue-500"
+            />
+            {passcodeError && (
+              <p className="text-xs font-medium text-red-500">{passcodeError}</p>
+            )}
+            <button
+              onClick={handleUnlock}
+              className="w-full py-3 bg-neutral-900 text-white rounded-2xl text-sm font-semibold hover:bg-neutral-800 transition-colors"
+            >
+              进入页面
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-neutral-900 flex flex-col lg:flex-row items-center justify-center p-4 lg:p-12 gap-12 font-sans overflow-hidden">
