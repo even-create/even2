@@ -23,6 +23,11 @@ import {
 } from 'lucide-react';
 
 const ACCESS_CODE = 'aical123';
+const svgToDataUri = (svg: string) => `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+const DEFAULT_WALLPAPER = svgToDataUri(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 1800"><defs><linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#5a5a5a"/><stop offset="45%" stop-color="#3a3a3a"/><stop offset="100%" stop-color="#111111"/></linearGradient><filter id="blur"><feGaussianBlur stdDeviation="32"/></filter></defs><rect width="900" height="1800" fill="url(#bg)"/><ellipse cx="450" cy="420" rx="360" ry="120" fill="#d9d9d9" opacity="0.18" filter="url(#blur)"/><ellipse cx="520" cy="860" rx="420" ry="160" fill="#f4f4f4" opacity="0.10" filter="url(#blur)"/><ellipse cx="380" cy="1280" rx="340" ry="140" fill="#ffffff" opacity="0.08" filter="url(#blur)"/></svg>`);
+const DEFAULT_MARTY_AVATAR = svgToDataUri(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 160"><defs><linearGradient id="face" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#f0f0f0"/><stop offset="100%" stop-color="#b9b9b9"/></linearGradient></defs><rect width="160" height="160" fill="#1e1e1e"/><circle cx="80" cy="86" r="40" fill="url(#face)"/><path d="M39 70c8-32 76-44 98 4-10-6-18-8-27-7-13 2-24 8-34 13-11 6-22 7-37-10z" fill="#2f2f2f"/><rect x="56" y="118" width="48" height="24" rx="12" fill="#9e9e9e"/><circle cx="66" cy="84" r="4" fill="#333"/><circle cx="94" cy="84" r="4" fill="#333"/><path d="M67 101c7 6 19 6 26 0" stroke="#444" stroke-width="4" stroke-linecap="round" fill="none"/></svg>`);
+const DEFAULT_PLUSFIT_AVATAR = svgToDataUri(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 160"><rect width="160" height="160" rx="32" fill="#141414"/><path d="M44 52h72v18H82v38H62V70H44z" fill="#ffffff"/><circle cx="112" cy="110" r="16" fill="#f97316"/></svg>`);
+const DEFAULT_WHATSAPP_BADGE = svgToDataUri(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" rx="18" fill="#25D366"/><path d="M33 15c-9.8 0-17.8 8-17.8 17.8 0 3.2.8 6.2 2.4 8.9l-2.5 8.4 8.7-2.3a17.7 17.7 0 0 0 9.1 2.5c9.8 0 17.8-8 17.8-17.8S42.8 15 33 15zm0 31.9c-2.7 0-5.2-.7-7.4-2l-.5-.3-5.2 1.4 1.4-5-.3-.5a14.2 14.2 0 1 1 12 6.4z" fill="#fff"/><path d="M26.4 24.5c-.5-1.2-1-1.2-1.4-1.2h-1.2c-.4 0-1 .1-1.5.7s-1.9 1.8-1.9 4.4 2 5.2 2.3 5.5c.3.3 4 6.3 10 8.6 5 2 6 1.6 7.1 1.5 1.1-.1 3.5-1.4 4-2.8.5-1.4.5-2.6.4-2.8-.1-.2-.5-.3-1-.6-.5-.3-3.1-1.6-3.6-1.8-.5-.2-.9-.3-1.3.3-.4.5-1.5 1.8-1.8 2.2-.3.4-.7.4-1.2.1-.5-.3-2.3-.8-4.4-2.7-1.6-1.4-2.7-3.2-3-3.8-.3-.5 0-.8.2-1.1.3-.3.5-.7.8-1 .3-.3.4-.5.6-.9.2-.4.1-.7 0-1-.1-.3-1.2-3-1.7-4.2z" fill="#fff"/></svg>`);
 
 // --- Types ---
 
@@ -71,7 +76,7 @@ const NotificationItem = ({ notification, onDelete }: { notification: Notificati
                ) : (
                  <div className="w-full h-full flex items-center justify-center bg-[#25D366]">
                     <img 
-                      src="https://ais.ivantech.click/files/input_file_2.png" 
+                      src={DEFAULT_WHATSAPP_BADGE} 
                       alt="WhatsApp Logo" 
                       className="w-[14px] h-[14px] object-contain" 
                     />
@@ -111,7 +116,7 @@ export default function App() {
   // --- State ---
   const [time, setTime] = useState('04:35');
   const [date, setDate] = useState('Saturday, April 04');
-  const [wallpaper, setWallpaper] = useState('https://picsum.photos/seed/iphone-bg/1000/2000?grayscale&blur=2');
+  const [wallpaper, setWallpaper] = useState(DEFAULT_WALLPAPER);
   const [notifications, setNotifications] = useState<Notification[]>([
     {
       id: '1',
@@ -119,7 +124,7 @@ export default function App() {
       sender: 'Marty',
       content: 'No me creo lo que esta haciendo tu novia',
       time: '6m ago',
-      avatar: 'https://i.pravatar.cc/150?u=marty'
+      avatar: DEFAULT_MARTY_AVATAR
     },
     {
       id: '2',
@@ -127,7 +132,7 @@ export default function App() {
       sender: 'Marty',
       content: 'Lleva toda la noche besandose a ese tipo y se acaban de ir juntos ahorita. Le dije que te iba a decir y me dijo que si no te decia tambien se acostaba conmigo... Sabes que eres mi hermano y yo no te traiciono, así tienes la verdad. Tú verás qué haces.',
       time: 'now',
-      avatar: 'https://i.pravatar.cc/150?u=marty'
+      avatar: DEFAULT_MARTY_AVATAR
     },
     {
       id: '3',
@@ -135,7 +140,7 @@ export default function App() {
       sender: 'Symmetry',
       content: 'Session finished! Brutal workout today, machine. You are close to Diamond I rank. Tomorrow Chest and Triceps to secure promotion. Do not slow down now.',
       time: '5h ago',
-      avatar: 'https://ais.ivantech.click/files/input_file_1.png'
+      avatar: DEFAULT_PLUSFIT_AVATAR
     }
   ]);
 
@@ -175,7 +180,7 @@ export default function App() {
       sender: type === 'whatsapp' ? 'New Message' : 'Plusfit',
       content: 'New notification content...',
       time: 'now',
-      avatar: type === 'plusfit' ? 'https://ais.ivantech.click/files/input_file_1.png' : ''
+      avatar: type === 'plusfit' ? DEFAULT_PLUSFIT_AVATAR : ''
     };
     setNotifications([newNotif, ...notifications]);
   };
