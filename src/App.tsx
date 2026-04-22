@@ -5,7 +5,7 @@
 
 import { useState, useEffect, useRef, ChangeEvent } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { toJpeg } from 'html-to-image';
+import html2canvas from 'html2canvas';
 import { 
   Camera, 
   Flashlight, 
@@ -43,7 +43,7 @@ interface Notification {
 
 // --- Components ---
 
-const NotificationItem = ({ notification, onDelete }: { notification: Notification; onDelete: (id: string) => void; key?: string }) => {
+const NotificationItem = ({ notification, onDelete, isExportMode = false }: { notification: Notification; onDelete: (id: string) => void; isExportMode?: boolean; key?: string }) => {
   const isWhatsApp = notification.type === 'whatsapp';
   
   return (
@@ -52,7 +52,7 @@ const NotificationItem = ({ notification, onDelete }: { notification: Notificati
       initial={{ opacity: 0, y: 20, scale: 0.95 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
       exit={{ opacity: 0, scale: 0.9 }}
-      className="w-full bg-white/80 backdrop-blur-[30px] rounded-[18px] px-3 pt-2 pb-3 shadow-sm border border-white/20 relative group"
+      className={`w-full rounded-[18px] px-3 pt-2 pb-3 shadow-sm border border-white/20 relative group ${isExportMode ? 'bg-white' : 'bg-white/80 backdrop-blur-[30px]'}`}
     >
       <div className="flex gap-3 items-start">
         {/* Avatar with Overlapping Badge Container */}
@@ -60,7 +60,7 @@ const NotificationItem = ({ notification, onDelete }: { notification: Notificati
           {/* Main Large Avatar */}
           <div className="w-full h-full rounded-full overflow-hidden bg-neutral-200 shadow-inner">
             {notification.avatar ? (
-              <img src={notification.avatar} alt={notification.sender} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+              <img src={notification.avatar} alt={notification.sender} className="w-full h-full object-cover" crossOrigin="anonymous" referrerPolicy="no-referrer" />
             ) : (
               <div className="w-full h-full flex items-center justify-center text-gray-500 font-bold uppercase italic bg-neutral-100">
                 {notification.sender.charAt(0)}
@@ -72,7 +72,7 @@ const NotificationItem = ({ notification, onDelete }: { notification: Notificati
           {isWhatsApp && (
             <div className="absolute bottom-[-2px] right-[-2px] w-[22px] h-[22px] rounded-[7px] overflow-hidden shadow-md flex items-center justify-center bg-white ring-2 ring-white">
                {notification.appBadge ? (
-                 <img src={notification.appBadge} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                 <img src={notification.appBadge} className="w-full h-full object-cover" crossOrigin="anonymous" referrerPolicy="no-referrer" />
                ) : (
                  <div className="w-full h-full flex items-center justify-center bg-[#25D366]">
                     <img 
@@ -146,6 +146,7 @@ export default function App() {
 
   const [isEditing, setIsEditing] = useState(false);
   const [isSavingImage, setIsSavingImage] = useState(false);
+  const [isExportMode, setIsExportMode] = useState(false);
   const [saveStatus, setSaveStatus] = useState<string | null>(null);
   const [passcodeInput, setPasscodeInput] = useState('');
   const [passcodeError, setPasscodeError] = useState('');
@@ -225,26 +226,51 @@ export default function App() {
       if ('fonts' in document) {
         await (document as Document & { fonts: FontFaceSet }).fonts.ready;
       }
-      const dataUrl = await toJpeg(captureNode, {
-        quality: 0.95,
-        pixelRatio: 2,
-        cacheBust: true,
-        backgroundColor: '#171717',
-        skipAutoScale: true,
+      setIsExportMode(true);
+      await new Promise((resolve) => window.requestAnimationFrame(() => resolve(null)));
+      await new Promise((resolve) => window.requestAnimationFrame(() => resolve(null)));
+
+      const canvas = await html2canvas(captureNode, {
+        backgroundColor: '#0c0c0c',
+        scale: 2,
+        useCORS: true,
+        allowTaint: false,
+        logging: false,
+        imageTimeout: 15000,
+        windowWidth: captureNode.scrollWidth,
+        windowHeight: captureNode.scrollHeight,
       });
 
+      const blob = await new Promise<Blob | null>((resolve) => {
+        canvas.toBlob((result) => resolve(result), 'image/jpeg', 0.95);
+      });
+
+      if (!blob) {
+        throw new Error('Canvas export returned an empty file.');
+      }
+
+      const downloadUrl = URL.createObjectURL(blob);
       const link = document.createElement('a');
-      link.href = dataUrl;
+      link.href = downloadUrl;
       link.download = `lock-screen-${Date.now()}.jpg`;
       document.body.appendChild(link);
       link.click();
       link.remove();
+      URL.revokeObjectURL(downloadUrl);
 
       setSaveStatus('JPG downloaded');
     } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
+      let message = 'Unknown export error.';
+      if (error instanceof Error && error.message) {
+        message = error.message;
+      } else if (error && typeof error === 'object' && 'type' in error) {
+        message = `Resource loading error (${String((error as Event).type)})`;
+      } else if (typeof error === 'string') {
+        message = error;
+      }
       setSaveStatus(`Save failed: ${message}`);
     } finally {
+      setIsExportMode(false);
       setIsSavingImage(false);
     }
   };
@@ -252,7 +278,7 @@ export default function App() {
   useEffect(() => {
     if (!saveStatus) return;
 
-    const timeoutId = window.setTimeout(() => setSaveStatus(null), 2500);
+    const timeoutId = window.setTimeout(() => setSaveStatus(null), 6000);
     return () => window.clearTimeout(timeoutId);
   }, [saveStatus]);
 
@@ -298,12 +324,14 @@ export default function App() {
     <div className="min-h-screen bg-neutral-900 flex flex-col lg:flex-row items-center justify-center p-4 lg:p-12 gap-12 font-sans overflow-hidden">
       
       {/* --- iPhone Frame --- */}
-      <div ref={phoneCaptureRef} className="relative group">
+      <div className="relative group">
         {/* Shadow for depth */}
-        <div className="absolute -inset-4 bg-black/40 blur-2xl rounded-[60px] opacity-50"></div>
+        {!isExportMode && (
+          <div className="absolute -inset-4 bg-black/40 blur-2xl rounded-[60px] opacity-50"></div>
+        )}
         
         {/* Device Frame (iPhone 16 Pro Max roughly 19.5:9) */}
-        <div className="relative w-[356px] h-[720px] bg-[#0c0c0c] rounded-[52px] border-[6px] border-[#1f1f21] p-2.5 shadow-2xl overflow-hidden ring-1 ring-white/10">
+        <div ref={phoneCaptureRef} className="relative w-[356px] h-[720px] bg-[#0c0c0c] rounded-[52px] border-[6px] border-[#1f1f21] p-2.5 shadow-2xl overflow-hidden ring-1 ring-white/10">
           
           {/* Inner Screen Surface */}
           <div className="relative w-full h-full rounded-[42px] overflow-hidden bg-black select-none">
@@ -312,11 +340,12 @@ export default function App() {
             <img 
               src={wallpaper} 
               alt="Wallpaper" 
-              className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+              className={`absolute inset-0 w-full h-full object-cover ${isExportMode ? '' : 'transition-transform duration-700 group-hover:scale-105'}`}
+              crossOrigin="anonymous"
               referrerPolicy="no-referrer"
             />
             {/* Dark overlay for readability */}
-            <div className="absolute inset-0 bg-black/30 backdrop-blur-[1px]"></div>
+            <div className={`absolute inset-0 bg-black/30 ${isExportMode ? '' : 'backdrop-blur-[1px]'}`}></div>
 
             {/* --- Screen Content --- */}
             <div className="relative w-full h-full flex flex-col pt-10 px-4">
@@ -350,6 +379,7 @@ export default function App() {
                     <NotificationItem 
                       key={notif.id} 
                       notification={notif} 
+                      isExportMode={isExportMode}
                       onDelete={handleDeleteNotification} 
                     />
                   ))}
@@ -372,10 +402,14 @@ export default function App() {
         </div>
         
         {/* Device Buttons */}
-        <div className="absolute -left-[6px] top-32 w-1.5 h-16 bg-[#2a2a2a] rounded-r-sm shadow-inner group-hover:left-[-4px] transition-all"></div>
-        <div className="absolute -left-[6px] top-56 w-1.5 h-12 bg-[#2a2a2a] rounded-r-sm shadow-inner group-hover:left-[-4px] transition-all"></div>
-        <div className="absolute -left-[6px] top-72 w-1.5 h-12 bg-[#2a2a2a] rounded-r-sm shadow-inner group-hover:left-[-4px] transition-all"></div>
-        <div className="absolute -right-[6px] top-48 w-1.5 h-20 bg-[#2a2a2a] rounded-l-sm shadow-inner group-hover:right-[-4px] transition-all"></div>
+        {!isExportMode && (
+          <>
+            <div className="absolute -left-[6px] top-32 w-1.5 h-16 bg-[#2a2a2a] rounded-r-sm shadow-inner group-hover:left-[-4px] transition-all"></div>
+            <div className="absolute -left-[6px] top-56 w-1.5 h-12 bg-[#2a2a2a] rounded-r-sm shadow-inner group-hover:left-[-4px] transition-all"></div>
+            <div className="absolute -left-[6px] top-72 w-1.5 h-12 bg-[#2a2a2a] rounded-r-sm shadow-inner group-hover:left-[-4px] transition-all"></div>
+            <div className="absolute -right-[6px] top-48 w-1.5 h-20 bg-[#2a2a2a] rounded-l-sm shadow-inner group-hover:right-[-4px] transition-all"></div>
+          </>
+        )}
       </div>
 
       {/* --- Control Panel --- */}
