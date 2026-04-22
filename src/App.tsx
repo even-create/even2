@@ -5,7 +5,6 @@
 
 import { useState, useEffect, useRef, ChangeEvent } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import html2canvas from 'html2canvas';
 import { 
   Camera, 
   Flashlight, 
@@ -28,57 +27,31 @@ const DEFAULT_WALLPAPER = svgToDataUri(`<svg xmlns="http://www.w3.org/2000/svg" 
 const DEFAULT_MARTY_AVATAR = svgToDataUri(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 160"><defs><linearGradient id="face" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#f0f0f0"/><stop offset="100%" stop-color="#b9b9b9"/></linearGradient></defs><rect width="160" height="160" fill="#1e1e1e"/><circle cx="80" cy="86" r="40" fill="url(#face)"/><path d="M39 70c8-32 76-44 98 4-10-6-18-8-27-7-13 2-24 8-34 13-11 6-22 7-37-10z" fill="#2f2f2f"/><rect x="56" y="118" width="48" height="24" rx="12" fill="#9e9e9e"/><circle cx="66" cy="84" r="4" fill="#333"/><circle cx="94" cy="84" r="4" fill="#333"/><path d="M67 101c7 6 19 6 26 0" stroke="#444" stroke-width="4" stroke-linecap="round" fill="none"/></svg>`);
 const DEFAULT_PLUSFIT_AVATAR = svgToDataUri(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 160"><rect width="160" height="160" rx="32" fill="#141414"/><path d="M44 52h72v18H82v38H62V70H44z" fill="#ffffff"/><circle cx="112" cy="110" r="16" fill="#f97316"/></svg>`);
 const DEFAULT_WHATSAPP_BADGE = svgToDataUri(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" rx="18" fill="#25D366"/><path d="M33 15c-9.8 0-17.8 8-17.8 17.8 0 3.2.8 6.2 2.4 8.9l-2.5 8.4 8.7-2.3a17.7 17.7 0 0 0 9.1 2.5c9.8 0 17.8-8 17.8-17.8S42.8 15 33 15zm0 31.9c-2.7 0-5.2-.7-7.4-2l-.5-.3-5.2 1.4 1.4-5-.3-.5a14.2 14.2 0 1 1 12 6.4z" fill="#fff"/><path d="M26.4 24.5c-.5-1.2-1-1.2-1.4-1.2h-1.2c-.4 0-1 .1-1.5.7s-1.9 1.8-1.9 4.4 2 5.2 2.3 5.5c.3.3 4 6.3 10 8.6 5 2 6 1.6 7.1 1.5 1.1-.1 3.5-1.4 4-2.8.5-1.4.5-2.6.4-2.8-.1-.2-.5-.3-1-.6-.5-.3-3.1-1.6-3.6-1.8-.5-.2-.9-.3-1.3.3-.4.5-1.5 1.8-1.8 2.2-.3.4-.7.4-1.2.1-.5-.3-2.3-.8-4.4-2.7-1.6-1.4-2.7-3.2-3-3.8-.3-.5 0-.8.2-1.1.3-.3.5-.7.8-1 .3-.3.4-.5.6-.9.2-.4.1-.7 0-1-.1-.3-1.2-3-1.7-4.2z" fill="#fff"/></svg>`);
-const EXPORT_SAFE_COLORS = `
-  [data-export-capture="true"] {
-    color: #111827 !important;
-    border-color: rgba(255, 255, 255, 0.2) !important;
-  }
-  [data-export-capture="true"] .bg-white\\/80,
-  [data-export-capture="true"] .bg-white {
-    background-color: #f2f2f2 !important;
-  }
-  [data-export-capture="true"] .text-white,
-  [data-export-capture="true"] .text-white\\/90 {
-    color: #ffffff !important;
-  }
-  [data-export-capture="true"] .text-gray-900 {
-    color: #111827 !important;
-  }
-  [data-export-capture="true"] .text-gray-400,
-  [data-export-capture="true"] .text-white\\/40 {
-    color: #9ca3af !important;
-  }
-  [data-export-capture="true"] .border-white\\/20 {
-    border-color: rgba(255, 255, 255, 0.2) !important;
-  }
-  [data-export-capture="true"] .bg-black,
-  [data-export-capture="true"] .bg-\\[\\#0c0c0c\\] {
-    background-color: #0c0c0c !important;
-  }
-  [data-export-capture="true"] .bg-black\\/30 {
-    background-color: rgba(0, 0, 0, 0.3) !important;
-  }
-  [data-export-capture="true"] .bg-green-500,
-  [data-export-capture="true"] .bg-\\[\\#25D366\\] {
-    background-color: #25d366 !important;
-  }
-`;
-const UNSUPPORTED_COLOR_RE = /(oklab|oklch|color-mix|color\()/i;
+const escapeXml = (value: string) =>
+  value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
 
-const resolveSafeColor = (value: string) => {
-  if (!value || value === 'transparent' || value === 'rgba(0, 0, 0, 0)' || !UNSUPPORTED_COLOR_RE.test(value)) {
-    return value;
+const wrapText = (text: string, maxCharsPerLine: number) => {
+  const words = text.split(/\s+/).filter(Boolean);
+  const lines: string[] = [];
+  let current = '';
+
+  for (const word of words) {
+    const next = current ? `${current} ${word}` : word;
+    if (next.length <= maxCharsPerLine || current.length === 0) {
+      current = next;
+      continue;
+    }
+    lines.push(current);
+    current = word;
   }
 
-  const probe = document.createElement('span');
-  probe.style.color = value;
-  probe.style.position = 'fixed';
-  probe.style.pointerEvents = 'none';
-  probe.style.opacity = '0';
-  document.body.appendChild(probe);
-  const resolved = window.getComputedStyle(probe).color;
-  probe.remove();
-  return resolved || value;
+  if (current) lines.push(current);
+  return lines;
 };
 
 // --- Types ---
@@ -268,8 +241,7 @@ export default function App() {
   };
 
   const handleSaveImage = async () => {
-    const captureNode = phoneCaptureRef.current;
-    if (!captureNode || isSavingImage) return;
+    if (isSavingImage) return;
 
     setIsSavingImage(true);
     setSaveStatus('Preparing JPG...');
@@ -278,64 +250,102 @@ export default function App() {
       if ('fonts' in document) {
         await (document as Document & { fonts: FontFaceSet }).fonts.ready;
       }
-      setIsExportMode(true);
-      await new Promise((resolve) => window.requestAnimationFrame(() => resolve(null)));
-      await new Promise((resolve) => window.requestAnimationFrame(() => resolve(null)));
 
-      const canvas = await html2canvas(captureNode, {
-        backgroundColor: '#0c0c0c',
-        scale: 2,
-        useCORS: true,
-        allowTaint: false,
-        logging: false,
-        imageTimeout: 15000,
-        windowWidth: captureNode.scrollWidth,
-        windowHeight: captureNode.scrollHeight,
-        onclone: (clonedDoc) => {
-          const clonedCapture = clonedDoc.querySelector('[data-export-capture="true"]');
-          if (clonedCapture instanceof HTMLElement) {
-            clonedCapture.setAttribute('data-export-capture', 'true');
-          }
-          const style = clonedDoc.createElement('style');
-          style.textContent = EXPORT_SAFE_COLORS;
-          clonedDoc.head.appendChild(style);
+      const exportWidth = 356;
+      const exportHeight = 720;
+      const innerX = 10;
+      const innerY = 10;
+      const innerWidth = 336;
+      const innerHeight = 700;
+      const notificationWidth = 302;
+      const notificationX = 16;
+      let notificationY = 230;
 
-          if (!(clonedCapture instanceof HTMLElement)) return;
+      const notificationSvgs = notifications.map((notification) => {
+        const isWhatsApp = notification.type === 'whatsapp';
+        const senderLines = [escapeXml(notification.sender)];
+        const textLines = wrapText(notification.content, 28).map(escapeXml);
+        const boxHeight = Math.max(82, 54 + textLines.length * 19);
+        const senderY = notificationY + 35;
+        const textStartY = notificationY + 57;
+        const timeColor = '#9ca3af';
+        const avatarSrc = notification.avatar || DEFAULT_MARTY_AVATAR;
+        const badgeSrc = notification.appBadge || DEFAULT_WHATSAPP_BADGE;
 
-          const sourceNodes = [captureNode, ...Array.from(captureNode.querySelectorAll('*'))];
-          const clonedNodes = [clonedCapture, ...Array.from(clonedCapture.querySelectorAll('*'))];
+        const textSvg = textLines
+          .map(
+            (line, index) =>
+              `<text x="${notificationX + 82}" y="${textStartY + index * 19}" font-family="Arial, Helvetica, sans-serif" font-size="16" fill="#111827">${line}</text>`
+          )
+          .join('');
 
-          clonedNodes.forEach((node, index) => {
-            const sourceNode = sourceNodes[index];
-            if (!(node instanceof HTMLElement) || !(sourceNode instanceof HTMLElement)) return;
+        const badgeSvg = isWhatsApp
+          ? `<image href="${badgeSrc}" x="${notificationX + 47}" y="${notificationY + 40}" width="22" height="22" preserveAspectRatio="xMidYMid slice" />`
+          : '';
 
-            const computed = window.getComputedStyle(sourceNode);
-            node.style.color = resolveSafeColor(computed.color);
-            node.style.backgroundColor = resolveSafeColor(computed.backgroundColor);
-            node.style.borderTopColor = resolveSafeColor(computed.borderTopColor);
-            node.style.borderRightColor = resolveSafeColor(computed.borderRightColor);
-            node.style.borderBottomColor = resolveSafeColor(computed.borderBottomColor);
-            node.style.borderLeftColor = resolveSafeColor(computed.borderLeftColor);
-            node.style.outlineColor = resolveSafeColor(computed.outlineColor);
-            node.style.caretColor = 'transparent';
-            node.style.boxShadow = 'none';
-            node.style.textShadow = 'none';
-            node.style.filter = 'none';
-            node.style.backdropFilter = 'none';
-            node.style.webkitBackdropFilter = 'none';
-            node.style.animation = 'none';
-            node.style.transition = 'none';
-          });
-        },
+        const svg = `
+          <g>
+            <rect x="${notificationX}" y="${notificationY}" width="${notificationWidth}" height="${boxHeight}" rx="18" fill="rgba(242,242,242,0.96)" />
+            <clipPath id="avatar-clip-${notification.id}">
+              <circle cx="${notificationX + 36}" cy="${notificationY + 37}" r="24" />
+            </clipPath>
+            <image href="${avatarSrc}" x="${notificationX + 12}" y="${notificationY + 13}" width="48" height="48" clip-path="url(#avatar-clip-${notification.id})" preserveAspectRatio="xMidYMid slice" />
+            ${badgeSvg}
+            <text x="${notificationX + 82}" y="${senderY}" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="700" fill="#111827">${senderLines[0]}</text>
+            <text x="${notificationX + notificationWidth - 14}" y="${senderY}" text-anchor="end" font-family="Arial, Helvetica, sans-serif" font-size="12" font-weight="600" fill="${timeColor}">${escapeXml(notification.time)}</text>
+            ${textSvg}
+          </g>
+        `;
+
+        notificationY += boxHeight + 12;
+        return svg;
+      }).join('');
+
+      const svgMarkup = `
+        <svg xmlns="http://www.w3.org/2000/svg" width="${exportWidth}" height="${exportHeight}" viewBox="0 0 ${exportWidth} ${exportHeight}">
+          <defs>
+            <clipPath id="screen-clip">
+              <rect x="${innerX}" y="${innerY}" width="${innerWidth}" height="${innerHeight}" rx="42" />
+            </clipPath>
+          </defs>
+          <rect width="${exportWidth}" height="${exportHeight}" rx="52" fill="#0c0c0c" />
+          <rect x="${innerX}" y="${innerY}" width="${innerWidth}" height="${innerHeight}" rx="42" fill="#000000" />
+          <g clip-path="url(#screen-clip)">
+            <image href="${wallpaper}" x="${innerX}" y="${innerY}" width="${innerWidth}" height="${innerHeight}" preserveAspectRatio="xMidYMid slice" />
+            <rect x="${innerX}" y="${innerY}" width="${innerWidth}" height="${innerHeight}" fill="rgba(0,0,0,0.3)" />
+            <rect x="112" y="14" width="132" height="36" rx="18" fill="#000000" />
+            <circle cx="142" cy="32" r="6" fill="#1a1a1c" />
+            <circle cx="212" cy="32" r="11" fill="rgba(34,197,94,0.12)" />
+            <circle cx="212" cy="32" r="4.5" fill="#22c55e" />
+            <text x="${exportWidth / 2}" y="128" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="28" font-weight="600" fill="#ffffff">${escapeXml(date)}</text>
+            <text x="${exportWidth / 2}" y="222" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="84" font-weight="700" fill="#ffffff">${escapeXml(time)}</text>
+            ${notificationSvgs}
+            <rect x="150" y="693" width="56" height="5" rx="2.5" fill="#ffffff" />
+          </g>
+        </svg>
+      `;
+
+      const image = new Image();
+      const dataUrl = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svgMarkup)}`;
+
+      await new Promise<void>((resolve, reject) => {
+        image.onload = () => resolve();
+        image.onerror = () => reject(new Error('SVG render failed.'));
+        image.src = dataUrl;
       });
 
-      const blob = await new Promise<Blob | null>((resolve) => {
-        canvas.toBlob((result) => resolve(result), 'image/jpeg', 0.95);
-      });
-
-      if (!blob) {
-        throw new Error('Canvas export returned an empty file.');
+      const canvas = document.createElement('canvas');
+      canvas.width = exportWidth * 2;
+      canvas.height = exportHeight * 2;
+      const context = canvas.getContext('2d');
+      if (!context) {
+        throw new Error('Canvas context unavailable.');
       }
+      context.scale(2, 2);
+      context.drawImage(image, 0, 0, exportWidth, exportHeight);
+
+      const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob((result) => resolve(result), 'image/jpeg', 0.95));
+      if (!blob) throw new Error('Canvas export returned an empty file.');
 
       const downloadUrl = URL.createObjectURL(blob);
       const link = document.createElement('a');
@@ -348,17 +358,9 @@ export default function App() {
 
       setSaveStatus('JPG downloaded');
     } catch (error) {
-      let message = 'Unknown export error.';
-      if (error instanceof Error && error.message) {
-        message = error.message;
-      } else if (error && typeof error === 'object' && 'type' in error) {
-        message = `Resource loading error (${String((error as Event).type)})`;
-      } else if (typeof error === 'string') {
-        message = error;
-      }
+      const message = error instanceof Error && error.message ? error.message : 'Unknown export error.';
       setSaveStatus(`Save failed: ${message}`);
     } finally {
-      setIsExportMode(false);
       setIsSavingImage(false);
     }
   };
